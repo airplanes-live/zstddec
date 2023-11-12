@@ -1,0 +1,17 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency
+node_modules/
+package-lock.json
+
+# ZSTD
+zstd-*/
+zstd-*.tar.gz*
+
+# Build
+dist/
+zstddeclib.c
+zstddec.wasm*

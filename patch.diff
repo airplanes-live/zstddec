@@ -1,0 +1,77 @@
+--- zstddeclib_1.5.5.c	2023-10-15 16:40:17.010929849 -0400
++++ zstddeclib_.c	2023-10-15 13:13:05.783926370 -0400
+@@ -16,6 +16,13 @@
+  * in the COPYING file in the root directory of this source tree).
+  * You may select, at your option, one of the above-listed licenses.
+  */
++
++/*
++ * findDecompressedSize interface changed from unsigned long long to U32 for wasm / browser compatibility (matthias.wirth@gmail.com)
++ * further info on the issue: https://github.com/WebAssembly/WASI/issues/54
++ * This is not necessary for browsers after 2020, but there are still plenty of older devices around
++ */
++
+ /*
+  * Settings to bake for the standalone decompressor.
+  *
+@@ -5479,7 +5486,7 @@
+  *   note 5 : ZSTD_findDecompressedSize handles multiple frames, and so it must traverse the input to
+  *            read each contained frame header.  This is fast as most of the data is skipped,
+  *            however it does mean that all frame data must be present and valid. */
+-ZSTDLIB_STATIC_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
++ZSTDLIB_STATIC_API U32 ZSTD_findDecompressedSize(const void* src, size_t srcSize);
+ 
+ /*! ZSTD_decompressBound() :
+  *  `src` should point to the start of a series of ZSTD encoded and/or skippable frames
+@@ -17881,16 +17888,18 @@
+  *      skippable frames
+  *  note: compatible with legacy mode
+  * @return : decompressed size of the frames contained */
+-unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
++U32 ZSTD_findDecompressedSize(const void* src, size_t srcSize)
+ {
+     unsigned long long totalDstSize = 0;
+ 
++    U32 _error = 0xffffffff;
++
+     while (srcSize >= ZSTD_startingInputLength(ZSTD_f_zstd1)) {
+         U32 const magicNumber = MEM_readLE32(src);
+ 
+         if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
+             size_t const skippableSize = readSkippableFrameSize(src, srcSize);
+-            if (ZSTD_isError(skippableSize)) return ZSTD_CONTENTSIZE_ERROR;
++            if (ZSTD_isError(skippableSize)) return _error;
+             assert(skippableSize <= srcSize);
+ 
+             src = (const BYTE *)src + skippableSize;
+@@ -17899,15 +17908,15 @@
+         }
+ 
+         {   unsigned long long const fcs = ZSTD_getFrameContentSize(src, srcSize);
+-            if (fcs >= ZSTD_CONTENTSIZE_ERROR) return fcs;
++            if (fcs >= ZSTD_CONTENTSIZE_ERROR) return _error;
+ 
+             if (totalDstSize + fcs < totalDstSize)
+-                return ZSTD_CONTENTSIZE_ERROR; /* check for overflow */
++                return _error; /* check for overflow */
+             totalDstSize += fcs;
+         }
+         /* skip to next frame */
+         {   size_t const frameSrcSize = ZSTD_findFrameCompressedSize(src, srcSize);
+-            if (ZSTD_isError(frameSrcSize)) return ZSTD_CONTENTSIZE_ERROR;
++            if (ZSTD_isError(frameSrcSize)) return _error;
+             assert(frameSrcSize <= srcSize);
+ 
+             src = (const BYTE *)src + frameSrcSize;
+@@ -17915,9 +17924,9 @@
+         }
+     }  /* while (srcSize >= ZSTD_frameHeaderSize_prefix) */
+ 
+-    if (srcSize) return ZSTD_CONTENTSIZE_ERROR;
++    if (totalDstSize >= UINT32_MAX || srcSize) return _error;
+ 
+-    return totalDstSize;
++    return (U32) totalDstSize;
+ }
+ 
+ /** ZSTD_getDecompressedSize() :
