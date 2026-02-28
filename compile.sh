@@ -1,9 +1,9 @@
 #!/bin/bash
 
-wget https://github.com/facebook/zstd/releases/download/v1.5.5/zstd-1.5.5.tar.gz
-tar xf zstd-1.5.5.tar.gz
+wget https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+tar xf zstd-1.5.7.tar.gz
 
-cd zstd-1.5.5/build/single_file_libs
+cd zstd-1.5.7/build/single_file_libs
 ./combine.sh -r ../../lib -o zstddeclib.c zstddeclib-in.c
 cp zstddeclib.c ../../..
 cd ../../..
